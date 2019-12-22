@@ -1,0 +1,173 @@
+<!doctype html>
+
+<html lang="jp">
+<head>
+  <meta charset="utf-8">
+
+  <title>エビデンス動画ビューワ</title>
+  <meta name="description" content="The HTML5 Herald">
+  <meta name="author" content="SitePoint">
+
+
+  <!-- <link rel="stylesheet" href="css/styles.css?v=1.0"> -->
+
+  <!--[if lt IE 9]>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv.js"></script>
+  <![endif]-->
+  <script src="https://code.jquery.com/jquery-3.4.1.min.js" crossorigin="anonymous"></script>
+  <style>
+  	li.active > span {
+	  	/* background: antiquewhite; */
+		background:#b4eff7ba;
+		padding-left: 5px;
+		padding-right: 5px;
+  	}
+  </style>
+</head>
+
+<body>
+	<h4>エビデンス動画ビューワ</h4>
+    <div>		
+		<!-- <video id="video" src="./videos/TightTight-Clip 001.mp4" width="100%" height="100%" controls /> -->
+		<!-- <video id="video" src="./videos/契約詳細画面での登録時の挙動.mp4" width="100%" height="100%" controls /> -->
+		<video id="video" src="./videos/test_2019-12-17_6.mp4" width="100%" height="100%" controls />
+    </div>
+
+  <button id="keyPress模擬">KeyPress模擬</button>
+  <input type="text" id="自動入力">
+  <button id="goToPrevCaption">前のｷｬﾌﾟｼｮﾝへ</button>
+  <button id="goToNextCaption">次のｷｬﾌﾟｼｮﾝへ</button>
+  　<button id="goTo3secPast">3秒戻る</button>
+  <button id="goTo3secFuture">3秒進む</button>　
+  
+  <!-- <br>  再生速度：<input id="再生速度" type="number" name="example" step="0.1" value="2.0" min="0" max="4.0"> -->
+  <br>  再生速度：<input type="range" id="再生速度" value="2" min="0" max="4" step="0.1"
+  oninput="document.getElementById('再生速度value').value=this.value">
+  <output id="再生速度value">2</output>
+
+  <br><br>
+  <label id="currentTime">　</label>　<label id="currentRow">　</label>
+
+  <ul id="captionList"></ul>
+
+  <hr>
+
+  <pre>
+【追加予定機能】
+　　・再生中の位置（currentTime）の表示
+　　・済：前のキャプション/次のキャプションを、現在再生中の位置をベースに移動する（再生中のみ）
+　　・済：実際にクリックした時刻よりも少し前に移動（クリックした場所が分かりやすいように）
+		Kokomite.exeを使うことで、常時マウスが目立つので、
+   ・CtrlやShiftを押しながらクリックした際は、その周囲のみをキャプチャする？
+   ・確認用のクリックと、イベント発生させるクリックで分けるといいかもしれない
+   ・クリック時に時刻を記録するだけでOKなはず
+　　・ショートカットキーでプレーヤー(キャプション移動、進む戻る、再生速度)を制御できるように
+
+  </pre>
+
+  <script src="./captions.json.js"></script>
+  <script>
+	$(window).on('load', function() {
+		//   console.table(captions);
+		let video = document.querySelector('#video');
+
+		video.playbackRate = 2.0;
+
+		// setTimeout(()=>
+		// {
+		// jsonファイル（拡張子はjs）からロード		
+		for(let i=0; i<captions.length; i++){
+			$('#captionList').append(`<li><span>${captions[i].time}: ${captions[i].text}</span></li>`);
+		}
+		
+		$('#再生速度').on('change',(e)=>{
+			// console.log(e);
+			video.playbackRate = Number(e.target.value);
+		});
+		
+		
+		$('li').on('click', function(e){
+			// console.log(e.target.textContent);
+			let txt = e.target.textContent;
+			let curTime = Number(txt.substr(0,txt.indexOf(':'))); // 再生位置
+			// $('#video').currentTime = curTime;
+			video.currentTime = curTime;
+			console.log(`curTime = ${curTime}`);
+			$('li').removeClass('active'); // 初期化
+
+			// console.log(e.target.parentElement.tagName);
+			switch(e.target.tagName.toLowerCase()){
+				case "li":
+					$(e.target).addClass('active');
+					break;
+				case "span":
+					$(e.target).parent().addClass('active');
+					break;
+				default:
+					alert("想定外の挙動です。管理者にご連絡ください。");
+					break;
+			}
+
+			$('#currentRow').text('　'+txt);
+			
+		});
+		
+
+		$('#goToPrevCaption').on('click',function(e){
+			// activeなli要素の前のli要素をclickする
+			if($('li.active').length != 0){
+				$('li.active').prev().click();
+			}else{
+				$('li').click(); // 最初の要素をclick
+			}	
+		});
+		$('#goToNextCaption').on('click',function(e){
+			// activeなli要素の次のli要素をclickする
+			if($('li.active').length != 0){
+				$('li.active').next().click();
+			}else{
+				$('li').eq(0).click(); // 最初の要素をclick
+			}	  	
+		});
+
+		// 3秒進む/3秒戻る
+		$('#goTo3secPast').on('click',()=>{
+			video.currentTime = video.currentTime - 3;
+		});
+		$('#goTo3secFuture').on('click',()=>{
+			video.currentTime = video.currentTime + 3;
+		});
+
+		// },2000);
+
+		setInterval(()=>{
+			// let curTime = Number(txt.substr(0,txt.indexOf(':'))); // 再生位置
+			$('#currentTime').text(video.currentTime.toFixed(1)+" sec");
+			// （再生中のみ）再生位置から、現在activeにすべき要素が適切かチェックする
+			// 小さい順にチェックしていって、秒数が超えた手前をactiveにする
+			if(video.paused == false){ // 再生中なら
+				console.log(`video.currentTime =  ${video.currentTime}`);
+				let txt = '';
+				let index = 0;
+				$('li').each( (i,elm) => {
+					console.log(Number(elm.textContent.substr(0,elm.textContent.indexOf(':'))));
+					if( Number(elm.textContent.substr(0,elm.textContent.indexOf(':'))) <= video.currentTime ){
+						txt = elm.textContent;
+						index = i;
+					}else{
+						return false; // break;
+					}
+				});
+
+				$('li').removeClass('active'); // 初期化
+				$('li').eq(index).addClass('active');
+
+				$('#currentRow').text('　'+txt);
+			}
+
+		},100);
+		  	  	
+	});
+  </script>
+</body>
+</html>
